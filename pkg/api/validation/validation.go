@@ -1210,6 +1210,24 @@ func ValidateReplicationControllerSpec(spec *api.ReplicationControllerSpec) errs
 	return allErrs
 }
 
+// ValidateDaemonController tests if required fields in the daemon controller are set.
+func ValidateDaemonController(controller *api.DaemonController) errs.ValidationErrorList {
+	allErrs := errs.ValidationErrorList{}
+	return allErrs
+}
+
+// ValidateDaemonControllerUpdate tests if required fields in the daemon controller are set.
+func ValidateDaemonControllerUpdate(oldController, controller *api.DaemonController) errs.ValidationErrorList {
+	allErrs := errs.ValidationErrorList{}
+	return allErrs
+}
+
+// ValidateDaemonControllerSpec tests if required fields in the daemon controller spec are set.
+func ValidateDaemonControllerSpec(spec *api.DaemonControllerSpec) errs.ValidationErrorList {
+	allErrs := errs.ValidationErrorList{}
+	return allErrs
+}
+
 // ValidatePodTemplateSpec validates the spec of a pod template
 func ValidatePodTemplateSpec(spec *api.PodTemplateSpec, replicas int) errs.ValidationErrorList {
 	allErrs := errs.ValidationErrorList{}

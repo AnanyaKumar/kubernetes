@@ -47,6 +47,7 @@ import (
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/master/ports"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/registry/componentstatus"
 	controlleretcd "github.com/GoogleCloudPlatform/kubernetes/pkg/registry/controller/etcd"
+	daemonetcd "github.com/GoogleCloudPlatform/kubernetes/pkg/registry/daemoncontroller/etcd"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/registry/endpoint"
 	endpointsetcd "github.com/GoogleCloudPlatform/kubernetes/pkg/registry/endpoint/etcd"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/registry/etcd"
@@ -454,6 +455,7 @@ func (m *Master) init(c *Config) {
 	m.serviceNodePortAllocator = serviceNodePortRegistry
 
 	controllerStorage := controlleretcd.NewREST(c.EtcdHelper)
+	daemonControllerStorage := daemonetcd.NewREST(c.EtcdHelper)
 
 	// TODO: Factor out the core API registration
 	m.storage = map[string]rest.Storage{
@@ -469,6 +471,7 @@ func (m *Master) init(c *Config) {
 		"podTemplates": podTemplateStorage,
 
 		"replicationControllers": controllerStorage,
+		"daemonControllers":      daemonControllerStorage,
 		"services":               service.NewStorage(m.serviceRegistry, m.nodeRegistry, m.endpointRegistry, serviceClusterIPAllocator, serviceNodePortAllocator, c.ClusterName),
 		"endpoints":              endpointsStorage,
 		"minions":                nodeStorage,

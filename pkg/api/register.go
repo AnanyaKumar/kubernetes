@@ -32,6 +32,8 @@ func init() {
 		&PodTemplateList{},
 		&ReplicationControllerList{},
 		&ReplicationController{},
+		&DaemonControllerList{},
+		&DaemonController{},
 		&ServiceList{},
 		&Service{},
 		&NodeList{},
@@ -81,6 +83,8 @@ func (*PodTemplate) IsAnAPIObject()               {}
 func (*PodTemplateList) IsAnAPIObject()           {}
 func (*ReplicationController) IsAnAPIObject()     {}
 func (*ReplicationControllerList) IsAnAPIObject() {}
+func (*DaemonController) IsAnAPIObject()          {}
+func (*DaemonControllerList) IsAnAPIObject()      {}
 func (*Service) IsAnAPIObject()                   {}
 func (*ServiceList) IsAnAPIObject()               {}
 func (*Endpoints) IsAnAPIObject()                 {}
