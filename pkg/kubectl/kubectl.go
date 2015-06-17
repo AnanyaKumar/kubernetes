@@ -104,6 +104,7 @@ func expandResourceShortcut(resource string) string {
 	shortForms := map[string]string{
 		// Please keep this alphabetized
 		"cs":     "componentstatuses",
+		"dc":     "daemonControllers",
 		"ev":     "events",
 		"limits": "limitRanges",
 		"no":     "nodes",

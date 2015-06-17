@@ -66,6 +66,7 @@ func describerMap(c *client.Client) map[string]Describer {
 	m := map[string]Describer{
 		"Pod": &PodDescriber{c},
 		"ReplicationController": &ReplicationControllerDescriber{c},
+		"DaemonController":      &DaemonControllerDescriber{c},
 		"Secret":                &SecretDescriber{c},
 		"Service":               &ServiceDescriber{c},
 		"ServiceAccount":        &ServiceAccountDescriber{c},
@@ -112,6 +113,7 @@ func init() {
 		describePod,
 		describeService,
 		describeReplicationController,
+		describeDaemonController,
 		describeNode,
 		describeNamespace,
 	)
@@ -556,6 +558,25 @@ func describeReplicationController(controller *api.ReplicationController, events
 		if events != nil {
 			DescribeEvents(events, out)
 		}
+		return nil
+	})
+}
+
+// DaemonControllerDescriber generates information about a daemon controller
+// and the pods it has created.
+type DaemonControllerDescriber struct {
+	client.Interface
+}
+
+func (d *DaemonControllerDescriber) Describe(namespace, name string) (string, error) {
+	// TODO (Ananya): Implement Describe.
+	return describeDaemonController("I'm not a Marvel, I'm a DC!") //running, waiting, succeeded, failed)
+}
+
+func describeDaemonController(s string) (string, error) {
+	return tabbedString(func(out io.Writer) error {
+		// TODO (Ananya): Implement describeDaemonController.
+		fmt.Fprintf(out, "Name:\t%s\n", s)
 		return nil
 	})
 }

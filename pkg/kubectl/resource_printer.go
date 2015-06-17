@@ -249,6 +249,7 @@ func (h *HumanReadablePrinter) HandledResources() []string {
 var podColumns = []string{"NAME", "READY", "REASON", "RESTARTS", "AGE"}
 var podTemplateColumns = []string{"TEMPLATE", "CONTAINER(S)", "IMAGE(S)", "PODLABELS"}
 var replicationControllerColumns = []string{"CONTROLLER", "CONTAINER(S)", "IMAGE(S)", "SELECTOR", "REPLICAS"}
+var daemonControllerColumns = []string{"CONTROLLER", "CONTAINER(S)", "IMAGE(S)", "Node-SELECTOR"}
 var serviceColumns = []string{"NAME", "LABELS", "SELECTOR", "IP(S)", "PORT(S)"}
 var endpointColumns = []string{"NAME", "ENDPOINTS"}
 var nodeColumns = []string{"NAME", "LABELS", "STATUS"}
@@ -270,6 +271,8 @@ func (h *HumanReadablePrinter) addDefaultHandlers() {
 	h.Handler(podTemplateColumns, printPodTemplateList)
 	h.Handler(replicationControllerColumns, printReplicationController)
 	h.Handler(replicationControllerColumns, printReplicationControllerList)
+	h.Handler(daemonControllerColumns, printDaemonController)
+	h.Handler(daemonControllerColumns, printDaemonControllerList)
 	h.Handler(serviceColumns, printService)
 	h.Handler(serviceColumns, printServiceList)
 	h.Handler(endpointColumns, printEndpoints)
@@ -496,6 +499,45 @@ func printReplicationController(controller *api.ReplicationController, w io.Writ
 func printReplicationControllerList(list *api.ReplicationControllerList, w io.Writer, withNamespace bool) error {
 	for _, controller := range list.Items {
 		if err := printReplicationController(&controller, w, withNamespace); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func printDaemonController(controller *api.DaemonController, w io.Writer, withNamespace bool) error {
+	var name string
+	if withNamespace {
+		name = types.NamespacedName{controller.Namespace, controller.Name}.String()
+	} else {
+		name = controller.Name
+	}
+
+	containers := controller.Spec.Template.Spec.Containers
+	var firstContainer api.Container
+	if len(containers) > 0 {
+		firstContainer, containers = containers[0], containers[1:]
+	}
+	_, err := fmt.Fprintf(w, "%s\t%s\t%s\n",
+		name,
+		firstContainer.Name,
+		firstContainer.Image)
+	if err != nil {
+		return err
+	}
+	// Lay out all the other containers on separate lines.
+	for _, container := range containers {
+		_, err := fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", "", container.Name, container.Image, "", "")
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func printDaemonControllerList(list *api.DaemonControllerList, w io.Writer, withNamespace bool) error {
+	for _, controller := range list.Items {
+		if err := printDaemonController(&controller, w, withNamespace); err != nil {
 			return err
 		}
 	}
