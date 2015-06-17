@@ -304,6 +304,60 @@ func deepCopy_v1beta3_ContainerStatus(in ContainerStatus, out *ContainerStatus, 
 	return nil
 }
 
+func deepCopy_v1beta3_DaemonController(in DaemonController, out *DaemonController, c *conversion.Cloner) error {
+	if err := deepCopy_v1beta3_TypeMeta(in.TypeMeta, &out.TypeMeta, c); err != nil {
+		return err
+	}
+	if err := deepCopy_v1beta3_ObjectMeta(in.ObjectMeta, &out.ObjectMeta, c); err != nil {
+		return err
+	}
+	if err := deepCopy_v1beta3_DaemonControllerSpec(in.Spec, &out.Spec, c); err != nil {
+		return err
+	}
+	if err := deepCopy_v1beta3_DaemonControllerStatus(in.Status, &out.Status, c); err != nil {
+		return err
+	}
+	return nil
+}
+
+func deepCopy_v1beta3_DaemonControllerList(in DaemonControllerList, out *DaemonControllerList, c *conversion.Cloner) error {
+	if err := deepCopy_v1beta3_TypeMeta(in.TypeMeta, &out.TypeMeta, c); err != nil {
+		return err
+	}
+	if err := deepCopy_v1beta3_ListMeta(in.ListMeta, &out.ListMeta, c); err != nil {
+		return err
+	}
+	if in.Items != nil {
+		out.Items = make([]DaemonController, len(in.Items))
+		for i := range in.Items {
+			if err := deepCopy_v1beta3_DaemonController(in.Items[i], &out.Items[i], c); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Items = nil
+	}
+	return nil
+}
+
+func deepCopy_v1beta3_DaemonControllerSpec(in DaemonControllerSpec, out *DaemonControllerSpec, c *conversion.Cloner) error {
+	if in.Template != nil {
+		out.Template = new(PodTemplateSpec)
+		if err := deepCopy_v1beta3_PodTemplateSpec(*in.Template, out.Template, c); err != nil {
+			return err
+		}
+	} else {
+		out.Template = nil
+	}
+	return nil
+}
+
+func deepCopy_v1beta3_DaemonControllerStatus(in DaemonControllerStatus, out *DaemonControllerStatus, c *conversion.Cloner) error {
+	out.NodesRunningDaemon = in.NodesRunningDaemon
+	out.NodesShouldRunDaemon = in.NodesShouldRunDaemon
+	return nil
+}
+
 func deepCopy_v1beta3_DeleteOptions(in DeleteOptions, out *DeleteOptions, c *conversion.Cloner) error {
 	if err := deepCopy_v1beta3_TypeMeta(in.TypeMeta, &out.TypeMeta, c); err != nil {
 		return err
@@ -2090,6 +2144,10 @@ func init() {
 		deepCopy_v1beta3_ContainerStateTerminated,
 		deepCopy_v1beta3_ContainerStateWaiting,
 		deepCopy_v1beta3_ContainerStatus,
+		deepCopy_v1beta3_DaemonController,
+		deepCopy_v1beta3_DaemonControllerList,
+		deepCopy_v1beta3_DaemonControllerSpec,
+		deepCopy_v1beta3_DaemonControllerStatus,
 		deepCopy_v1beta3_DeleteOptions,
 		deepCopy_v1beta3_EmptyDirVolumeSource,
 		deepCopy_v1beta3_EndpointAddress,

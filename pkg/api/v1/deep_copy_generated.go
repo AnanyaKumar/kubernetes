@@ -300,6 +300,60 @@ func deepCopy_v1_ContainerStatus(in ContainerStatus, out *ContainerStatus, c *co
 	return nil
 }
 
+func deepCopy_v1_DaemonController(in DaemonController, out *DaemonController, c *conversion.Cloner) error {
+	if err := deepCopy_v1_TypeMeta(in.TypeMeta, &out.TypeMeta, c); err != nil {
+		return err
+	}
+	if err := deepCopy_v1_ObjectMeta(in.ObjectMeta, &out.ObjectMeta, c); err != nil {
+		return err
+	}
+	if err := deepCopy_v1_DaemonControllerSpec(in.Spec, &out.Spec, c); err != nil {
+		return err
+	}
+	if err := deepCopy_v1_DaemonControllerStatus(in.Status, &out.Status, c); err != nil {
+		return err
+	}
+	return nil
+}
+
+func deepCopy_v1_DaemonControllerList(in DaemonControllerList, out *DaemonControllerList, c *conversion.Cloner) error {
+	if err := deepCopy_v1_TypeMeta(in.TypeMeta, &out.TypeMeta, c); err != nil {
+		return err
+	}
+	if err := deepCopy_v1_ListMeta(in.ListMeta, &out.ListMeta, c); err != nil {
+		return err
+	}
+	if in.Items != nil {
+		out.Items = make([]DaemonController, len(in.Items))
+		for i := range in.Items {
+			if err := deepCopy_v1_DaemonController(in.Items[i], &out.Items[i], c); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Items = nil
+	}
+	return nil
+}
+
+func deepCopy_v1_DaemonControllerSpec(in DaemonControllerSpec, out *DaemonControllerSpec, c *conversion.Cloner) error {
+	if in.Template != nil {
+		out.Template = new(PodTemplateSpec)
+		if err := deepCopy_v1_PodTemplateSpec(*in.Template, out.Template, c); err != nil {
+			return err
+		}
+	} else {
+		out.Template = nil
+	}
+	return nil
+}
+
+func deepCopy_v1_DaemonControllerStatus(in DaemonControllerStatus, out *DaemonControllerStatus, c *conversion.Cloner) error {
+	out.NodesRunningDaemon = in.NodesRunningDaemon
+	out.NodesShouldRunDaemon = in.NodesShouldRunDaemon
+	return nil
+}
+
 func deepCopy_v1_DeleteOptions(in DeleteOptions, out *DeleteOptions, c *conversion.Cloner) error {
 	if err := deepCopy_v1_TypeMeta(in.TypeMeta, &out.TypeMeta, c); err != nil {
 		return err
@@ -2090,6 +2144,10 @@ func init() {
 		deepCopy_v1_ContainerStateTerminated,
 		deepCopy_v1_ContainerStateWaiting,
 		deepCopy_v1_ContainerStatus,
+		deepCopy_v1_DaemonController,
+		deepCopy_v1_DaemonControllerList,
+		deepCopy_v1_DaemonControllerSpec,
+		deepCopy_v1_DaemonControllerStatus,
 		deepCopy_v1_DeleteOptions,
 		deepCopy_v1_EmptyDirVolumeSource,
 		deepCopy_v1_EndpointAddress,
