@@ -111,6 +111,14 @@ func ValidateReplicationControllerName(name string, prefix bool) (bool, string) 
 	return nameIsDNSSubdomain(name, prefix)
 }
 
+// ValidateDaemonControllerName can be used to check whether the given daemon
+// controller name is valid.
+// Prefix indicates this name will be used as part of generation, in which case
+// trailing dashes are allowed.
+func ValidateDaemonControllerName(name string, prefix bool) (bool, string) {
+	return nameIsDNSSubdomain(name, prefix)
+}
+
 // ValidateServiceName can be used to check whether the given service name is valid.
 // Prefix indicates this name will be used as part of generation, in which case
 // trailing dashes are allowed.
@@ -1021,7 +1029,7 @@ func ValidatePodStatusUpdate(newPod, oldPod *api.Pod) errs.ValidationErrorList {
 func ValidatePodTemplate(pod *api.PodTemplate) errs.ValidationErrorList {
 	allErrs := errs.ValidationErrorList{}
 	allErrs = append(allErrs, ValidateObjectMeta(&pod.ObjectMeta, true, ValidatePodName).Prefix("metadata")...)
-	allErrs = append(allErrs, ValidatePodTemplateSpec(&pod.Template, 0).Prefix("template")...)
+	allErrs = append(allErrs, ValidatePodTemplateSpec(&pod.Template).Prefix("template")...)
 	return allErrs
 }
 
@@ -1029,9 +1037,8 @@ func ValidatePodTemplate(pod *api.PodTemplate) errs.ValidationErrorList {
 // that cannot be changed.
 func ValidatePodTemplateUpdate(newPod, oldPod *api.PodTemplate) errs.ValidationErrorList {
 	allErrs := errs.ValidationErrorList{}
-
-	allErrs = append(allErrs, ValidateObjectMetaUpdate(&newPod.ObjectMeta, &oldPod.ObjectMeta).Prefix("metadata")...)
-	allErrs = append(allErrs, ValidatePodTemplateSpec(&newPod.Template, 0).Prefix("template")...)
+	allErrs = append(allErrs, ValidateObjectMetaUpdate(&oldPod.ObjectMeta, &newPod.ObjectMeta).Prefix("metadata")...)
+	allErrs = append(allErrs, ValidatePodTemplateSpec(&newPod.Template).Prefix("template")...)
 	return allErrs
 }
 
@@ -1170,7 +1177,6 @@ func ValidateReplicationController(controller *api.ReplicationController) errs.V
 	allErrs := errs.ValidationErrorList{}
 	allErrs = append(allErrs, ValidateObjectMeta(&controller.ObjectMeta, true, ValidateReplicationControllerName).Prefix("metadata")...)
 	allErrs = append(allErrs, ValidateReplicationControllerSpec(&controller.Spec).Prefix("spec")...)
-
 	return allErrs
 }
 
@@ -1201,7 +1207,10 @@ func ValidateReplicationControllerSpec(spec *api.ReplicationControllerSpec) errs
 		if !selector.Matches(labels) {
 			allErrs = append(allErrs, errs.NewFieldInvalid("template.labels", spec.Template.Labels, "selector does not match template"))
 		}
-		allErrs = append(allErrs, ValidatePodTemplateSpec(spec.Template, spec.Replicas).Prefix("template")...)
+		allErrs = append(allErrs, ValidatePodTemplateSpec(spec.Template).Prefix("template")...)
+		if spec.Replicas > 1 {
+			allErrs = append(allErrs, ValidateReadOnlyPersistentDisks(spec.Template.Spec.Volumes).Prefix("template.spec.volumes")...)
+		}
 		// RestartPolicy has already been first-order validated as per ValidatePodTemplateSpec().
 		if spec.Template.Spec.RestartPolicy != api.RestartPolicyAlways {
 			allErrs = append(allErrs, errs.NewFieldNotSupported("template.restartPolicy", spec.Template.Spec.RestartPolicy))
@@ -1213,30 +1222,39 @@ func ValidateReplicationControllerSpec(spec *api.ReplicationControllerSpec) errs
 // ValidateDaemonController tests if required fields in the daemon controller are set.
 func ValidateDaemonController(controller *api.DaemonController) errs.ValidationErrorList {
 	allErrs := errs.ValidationErrorList{}
+	allErrs = append(allErrs, ValidateObjectMeta(&controller.ObjectMeta, true, ValidateReplicationControllerName).Prefix("metadata")...)
+	allErrs = append(allErrs, ValidateDaemonControllerSpec(&controller.Spec).Prefix("spec")...)
 	return allErrs
 }
 
 // ValidateDaemonControllerUpdate tests if required fields in the daemon controller are set.
 func ValidateDaemonControllerUpdate(oldController, controller *api.DaemonController) errs.ValidationErrorList {
 	allErrs := errs.ValidationErrorList{}
+	allErrs = append(allErrs, ValidateObjectMetaUpdate(&oldController.ObjectMeta, &controller.ObjectMeta).Prefix("metadata")...)
+	allErrs = append(allErrs, ValidateDaemonControllerSpec(&controller.Spec).Prefix("spec")...)
 	return allErrs
 }
 
 // ValidateDaemonControllerSpec tests if required fields in the daemon controller spec are set.
 func ValidateDaemonControllerSpec(spec *api.DaemonControllerSpec) errs.ValidationErrorList {
 	allErrs := errs.ValidationErrorList{}
+	if spec.Template == nil {
+		allErrs = append(allErrs, errs.NewFieldRequired("template"))
+	} else {
+		allErrs = append(allErrs, ValidatePodTemplateSpec(spec.Template).Prefix("template")...)
+		if spec.Template.Spec.RestartPolicy != api.RestartPolicyAlways {
+			allErrs = append(allErrs, errs.NewFieldNotSupported("template.restartPolicy", spec.Template.Spec.RestartPolicy))
+		}
+	}
 	return allErrs
 }
 
 // ValidatePodTemplateSpec validates the spec of a pod template
-func ValidatePodTemplateSpec(spec *api.PodTemplateSpec, replicas int) errs.ValidationErrorList {
+func ValidatePodTemplateSpec(spec *api.PodTemplateSpec) errs.ValidationErrorList {
 	allErrs := errs.ValidationErrorList{}
 	allErrs = append(allErrs, ValidateLabels(spec.Labels, "labels")...)
 	allErrs = append(allErrs, ValidateAnnotations(spec.Annotations, "annotations")...)
 	allErrs = append(allErrs, ValidatePodSpec(&spec.Spec).Prefix("spec")...)
-	if replicas > 1 {
-		allErrs = append(allErrs, ValidateReadOnlyPersistentDisks(spec.Spec.Volumes).Prefix("spec.volumes")...)
-	}
 	return allErrs
 }
 
