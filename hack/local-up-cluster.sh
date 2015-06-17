@@ -213,7 +213,7 @@ function start_apiserver {
       --admission_control="${ADMISSION_CONTROL}" \
       --address="${API_HOST}" \
       --port="${API_PORT}" \
-      --runtime_config=api/v1beta3 \
+      --runtime_config=api/v1 \
       --etcd_servers="http://127.0.0.1:4001" \
       --service-cluster-ip-range="10.0.0.0/24" \
       --cors_allowed_origins="${API_CORS_ALLOWED_ORIGINS}" >"${APISERVER_LOG}" 2>&1 &
@@ -221,7 +221,7 @@ function start_apiserver {
 
     # Wait for kube-apiserver to come up before launching the rest of the components.
     echo "Waiting for apiserver to come up"
-    kube::util::wait_for_url "http://${API_HOST}:${API_PORT}/api/v1beta3/pods" "apiserver: " 1 10 || exit 1
+    kube::util::wait_for_url "http://${API_HOST}:${API_PORT}/api/v1/pods" "apiserver: " 1 10 || exit 1
 }
 
 function start_controller_manager {
@@ -284,16 +284,13 @@ function start_kubeproxy {
 function print_success {
 cat <<EOF
 Local Kubernetes cluster is running. Press Ctrl-C to shut it down.
-
 Logs:
   ${APISERVER_LOG}
   ${CTLRMGR_LOG}
   ${PROXY_LOG}
   ${SCHEDULER_LOG}
   ${KUBELET_LOG}
-
 To start using your cluster, open up another terminal/tab and run:
-
   cluster/kubectl.sh config set-cluster local --server=http://${API_HOST}:${API_PORT} --insecure-skip-tls-verify=true
   cluster/kubectl.sh config set-context local --cluster=local
   cluster/kubectl.sh config use-context local

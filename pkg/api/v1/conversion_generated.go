@@ -323,6 +323,72 @@ func convert_api_ContainerStatus_To_v1_ContainerStatus(in *api.ContainerStatus, 
 	return nil
 }
 
+func convert_api_DaemonController_To_v1_DaemonController(in *api.DaemonController, out *DaemonController, s conversion.Scope) error {
+	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
+		defaulting.(func(*api.DaemonController))(in)
+	}
+	if err := convert_api_TypeMeta_To_v1_TypeMeta(&in.TypeMeta, &out.TypeMeta, s); err != nil {
+		return err
+	}
+	if err := convert_api_ObjectMeta_To_v1_ObjectMeta(&in.ObjectMeta, &out.ObjectMeta, s); err != nil {
+		return err
+	}
+	if err := convert_api_DaemonControllerSpec_To_v1_DaemonControllerSpec(&in.Spec, &out.Spec, s); err != nil {
+		return err
+	}
+	if err := convert_api_DaemonControllerStatus_To_v1_DaemonControllerStatus(&in.Status, &out.Status, s); err != nil {
+		return err
+	}
+	return nil
+}
+
+func convert_api_DaemonControllerList_To_v1_DaemonControllerList(in *api.DaemonControllerList, out *DaemonControllerList, s conversion.Scope) error {
+	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
+		defaulting.(func(*api.DaemonControllerList))(in)
+	}
+	if err := convert_api_TypeMeta_To_v1_TypeMeta(&in.TypeMeta, &out.TypeMeta, s); err != nil {
+		return err
+	}
+	if err := convert_api_ListMeta_To_v1_ListMeta(&in.ListMeta, &out.ListMeta, s); err != nil {
+		return err
+	}
+	if in.Items != nil {
+		out.Items = make([]DaemonController, len(in.Items))
+		for i := range in.Items {
+			if err := convert_api_DaemonController_To_v1_DaemonController(&in.Items[i], &out.Items[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Items = nil
+	}
+	return nil
+}
+
+func convert_api_DaemonControllerSpec_To_v1_DaemonControllerSpec(in *api.DaemonControllerSpec, out *DaemonControllerSpec, s conversion.Scope) error {
+	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
+		defaulting.(func(*api.DaemonControllerSpec))(in)
+	}
+	if in.Template != nil {
+		out.Template = new(PodTemplateSpec)
+		if err := convert_api_PodTemplateSpec_To_v1_PodTemplateSpec(in.Template, out.Template, s); err != nil {
+			return err
+		}
+	} else {
+		out.Template = nil
+	}
+	return nil
+}
+
+func convert_api_DaemonControllerStatus_To_v1_DaemonControllerStatus(in *api.DaemonControllerStatus, out *DaemonControllerStatus, s conversion.Scope) error {
+	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
+		defaulting.(func(*api.DaemonControllerStatus))(in)
+	}
+	out.NodesRunningDaemon = in.NodesRunningDaemon
+	out.NodesShouldRunDaemon = in.NodesShouldRunDaemon
+	return nil
+}
+
 func convert_api_DeleteOptions_To_v1_DeleteOptions(in *api.DeleteOptions, out *DeleteOptions, s conversion.Scope) error {
 	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
 		defaulting.(func(*api.DeleteOptions))(in)
@@ -2631,6 +2697,72 @@ func convert_v1_ContainerStatus_To_api_ContainerStatus(in *ContainerStatus, out 
 	return nil
 }
 
+func convert_v1_DaemonController_To_api_DaemonController(in *DaemonController, out *api.DaemonController, s conversion.Scope) error {
+	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
+		defaulting.(func(*DaemonController))(in)
+	}
+	if err := convert_v1_TypeMeta_To_api_TypeMeta(&in.TypeMeta, &out.TypeMeta, s); err != nil {
+		return err
+	}
+	if err := convert_v1_ObjectMeta_To_api_ObjectMeta(&in.ObjectMeta, &out.ObjectMeta, s); err != nil {
+		return err
+	}
+	if err := convert_v1_DaemonControllerSpec_To_api_DaemonControllerSpec(&in.Spec, &out.Spec, s); err != nil {
+		return err
+	}
+	if err := convert_v1_DaemonControllerStatus_To_api_DaemonControllerStatus(&in.Status, &out.Status, s); err != nil {
+		return err
+	}
+	return nil
+}
+
+func convert_v1_DaemonControllerList_To_api_DaemonControllerList(in *DaemonControllerList, out *api.DaemonControllerList, s conversion.Scope) error {
+	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
+		defaulting.(func(*DaemonControllerList))(in)
+	}
+	if err := convert_v1_TypeMeta_To_api_TypeMeta(&in.TypeMeta, &out.TypeMeta, s); err != nil {
+		return err
+	}
+	if err := convert_v1_ListMeta_To_api_ListMeta(&in.ListMeta, &out.ListMeta, s); err != nil {
+		return err
+	}
+	if in.Items != nil {
+		out.Items = make([]api.DaemonController, len(in.Items))
+		for i := range in.Items {
+			if err := convert_v1_DaemonController_To_api_DaemonController(&in.Items[i], &out.Items[i], s); err != nil {
+				return err
+			}
+		}
+	} else {
+		out.Items = nil
+	}
+	return nil
+}
+
+func convert_v1_DaemonControllerSpec_To_api_DaemonControllerSpec(in *DaemonControllerSpec, out *api.DaemonControllerSpec, s conversion.Scope) error {
+	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
+		defaulting.(func(*DaemonControllerSpec))(in)
+	}
+	if in.Template != nil {
+		out.Template = new(api.PodTemplateSpec)
+		if err := convert_v1_PodTemplateSpec_To_api_PodTemplateSpec(in.Template, out.Template, s); err != nil {
+			return err
+		}
+	} else {
+		out.Template = nil
+	}
+	return nil
+}
+
+func convert_v1_DaemonControllerStatus_To_api_DaemonControllerStatus(in *DaemonControllerStatus, out *api.DaemonControllerStatus, s conversion.Scope) error {
+	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
+		defaulting.(func(*DaemonControllerStatus))(in)
+	}
+	out.NodesRunningDaemon = in.NodesRunningDaemon
+	out.NodesShouldRunDaemon = in.NodesShouldRunDaemon
+	return nil
+}
+
 func convert_v1_DeleteOptions_To_api_DeleteOptions(in *DeleteOptions, out *api.DeleteOptions, s conversion.Scope) error {
 	if defaulting, found := s.DefaultingInterface(reflect.TypeOf(*in)); found {
 		defaulting.(func(*DeleteOptions))(in)
@@ -4656,6 +4788,10 @@ func init() {
 		convert_api_ContainerState_To_v1_ContainerState,
 		convert_api_ContainerStatus_To_v1_ContainerStatus,
 		convert_api_Container_To_v1_Container,
+		convert_api_DaemonControllerList_To_v1_DaemonControllerList,
+		convert_api_DaemonControllerSpec_To_v1_DaemonControllerSpec,
+		convert_api_DaemonControllerStatus_To_v1_DaemonControllerStatus,
+		convert_api_DaemonController_To_v1_DaemonController,
 		convert_api_DeleteOptions_To_v1_DeleteOptions,
 		convert_api_EmptyDirVolumeSource_To_v1_EmptyDirVolumeSource,
 		convert_api_EndpointAddress_To_v1_EndpointAddress,
@@ -4769,6 +4905,10 @@ func init() {
 		convert_v1_ContainerState_To_api_ContainerState,
 		convert_v1_ContainerStatus_To_api_ContainerStatus,
 		convert_v1_Container_To_api_Container,
+		convert_v1_DaemonControllerList_To_api_DaemonControllerList,
+		convert_v1_DaemonControllerSpec_To_api_DaemonControllerSpec,
+		convert_v1_DaemonControllerStatus_To_api_DaemonControllerStatus,
+		convert_v1_DaemonController_To_api_DaemonController,
 		convert_v1_DeleteOptions_To_api_DeleteOptions,
 		convert_v1_EmptyDirVolumeSource_To_api_EmptyDirVolumeSource,
 		convert_v1_EndpointAddress_To_api_EndpointAddress,

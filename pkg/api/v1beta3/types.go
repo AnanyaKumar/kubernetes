@@ -1029,6 +1029,46 @@ type ReplicationControllerList struct {
 	Items []ReplicationController `json:"items" description:"list of replication controllers"`
 }
 
+// DaemonControllerSpec is the specification of a daemon controller.
+type DaemonControllerSpec struct {
+	// Template is the object that describes the pod that will be created.
+	// The Daemon Controller will create this pod on every node that matches
+	// the template's node selector (or an every nodes if no node selector is
+	// specified).
+	Template *PodTemplateSpec `json:"template,omitempty"`
+}
+
+// DaemonControllerStatus represents the current status of a daemon
+// controller.
+type DaemonControllerStatus struct {
+	// NodesRunningDaemon is the number of nodes running the Daemon.
+	NodesRunningDaemon int `json:"nodes_running_daemon"`
+
+	// NodesShouldRunDaemon is the number of nodes that should be running the Daemon.
+	NodesShouldRunDaemon int `json:"nodes_should_run_daemon"`
+}
+
+// DaemonController represents the configuration of a daemon controller.
+type DaemonController struct {
+	TypeMeta   `json:",inline"`
+	ObjectMeta `json:"metadata,omitempty"`
+
+	// Spec defines the desired behavior of this daemon controller.
+	Spec DaemonControllerSpec `json:"spec,omitempty"`
+
+	// Status is the current status of this daemon controller. This data may be
+	// out of date by some window of time.
+	Status DaemonControllerStatus `json:"status,omitempty"`
+}
+
+// DaemonControllerList is a collection of daemon controllers.
+type DaemonControllerList struct {
+	TypeMeta `json:",inline"`
+	ListMeta `json:"metadata,omitempty"`
+
+	Items []DaemonController `json:"items"`
+}
+
 // Session Affinity Type string
 type ServiceAffinity string
 
@@ -1808,6 +1848,8 @@ const (
 	ResourceServices ResourceName = "services"
 	// ReplicationControllers, number
 	ResourceReplicationControllers ResourceName = "replicationcontrollers"
+	// DaemonControllers, number
+	ResourceDaemonControllers ResourceName = "daemoncontrollers"
 	// ResourceQuotas, number
 	ResourceQuotas ResourceName = "resourcequotas"
 	// ResourceSecrets, number

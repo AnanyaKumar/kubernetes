@@ -47,6 +47,8 @@ func addKnownTypes() {
 		&PodTemplateList{},
 		&ReplicationController{},
 		&ReplicationControllerList{},
+		&DaemonControllerList{},
+		&DaemonController{},
 		&Service{},
 		&ServiceList{},
 		&Endpoints{},
@@ -94,6 +96,8 @@ func (*PodTemplate) IsAnAPIObject()               {}
 func (*PodTemplateList) IsAnAPIObject()           {}
 func (*ReplicationController) IsAnAPIObject()     {}
 func (*ReplicationControllerList) IsAnAPIObject() {}
+func (*DaemonController) IsAnAPIObject()          {}
+func (*DaemonControllerList) IsAnAPIObject()      {}
 func (*Service) IsAnAPIObject()                   {}
 func (*ServiceList) IsAnAPIObject()               {}
 func (*Endpoints) IsAnAPIObject()                 {}
