@@ -21,6 +21,10 @@ import (
 	"strings"
 )
 
+const (
+	DaemonControllerLabel string = "daemon-controller"
+)
+
 // Labels allows you to present labels independently from their storage.
 type Labels interface {
 	// Has returns whether the provided label exists.

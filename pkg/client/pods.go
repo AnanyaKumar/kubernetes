@@ -21,6 +21,7 @@ import (
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/fields"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/labels"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/watch"
+	"github.com/golang/glog"
 )
 
 // PodsNamespacer has methods to work with Pod resources in a namespace
@@ -58,6 +59,7 @@ func newPods(c *Client, namespace string) *pods {
 func (c *pods) List(label labels.Selector, field fields.Selector) (result *api.PodList, err error) {
 	result = &api.PodList{}
 	err = c.r.Get().Namespace(c.ns).Resource("pods").LabelsSelectorParam(label).FieldsSelectorParam(field).Do().Into(result)
+	glog.Infof("Value from kubeclient listing %+v", result)
 	return
 }
 
@@ -84,7 +86,10 @@ func (c *pods) Delete(name string, options *api.DeleteOptions) error {
 // Create takes the representation of a pod.  Returns the server's representation of the pod, and an error, if it occurs.
 func (c *pods) Create(pod *api.Pod) (result *api.Pod, err error) {
 	result = &api.Pod{}
-	err = c.r.Post().Namespace(c.ns).Resource("pods").Body(pod).Do().Into(result)
+	glog.Infof("clientCreate: %+v", pod)
+	body := c.r.Post().Namespace(c.ns).Resource("pods").Body(pod)
+	err = body.Do().Into(result)
+	glog.Infoln(body)
 	return
 }
 

@@ -99,7 +99,7 @@ func NewCMServer() *CMServer {
 		Address:                 util.IP(net.ParseIP("127.0.0.1")),
 		ConcurrentEndpointSyncs: 5,
 		ConcurrentRCSyncs:       5,
-		ConcurrentDCSyncs:       2,
+		ConcurrentDCSyncs:       1,
 		NodeSyncPeriod:          10 * time.Second,
 		ResourceQuotaSyncPeriod: 10 * time.Second,
 		NamespaceSyncPeriod:     5 * time.Minute,

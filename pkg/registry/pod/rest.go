@@ -32,6 +32,7 @@ import (
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/runtime"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/util"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/util/fielderrors"
+	"github.com/golang/glog"
 )
 
 // podStrategy implements behavior for Pods
@@ -52,6 +53,7 @@ func (podStrategy) NamespaceScoped() bool {
 // PrepareForCreate clears fields that are not allowed to be set by end users on creation.
 func (podStrategy) PrepareForCreate(obj runtime.Object) {
 	pod := obj.(*api.Pod)
+	glog.Infof("PrepareForCreate: %+v", pod)
 	pod.Status = api.PodStatus{
 		Phase: api.PodPending,
 	}

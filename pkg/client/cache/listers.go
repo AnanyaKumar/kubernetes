@@ -248,6 +248,26 @@ func (s *StoreToDaemonControllerLister) List() (controllers []api.DaemonControll
 	return controllers, nil
 }
 
+func (s *StoreToDaemonControllerLister) GetPodDaemonController(pod *api.Pod) (controller *api.DaemonController, err error) {
+	daemonControllerName, exists := pod.Labels[labels.DaemonControllerLabel]
+	if !exists {
+		err = fmt.Errorf("pod %v is not controlled by a daemon controller", pod.Name)
+		return
+	}
+	for _, m := range s.Store.List() {
+		dc := *m.(*api.DaemonController)
+		if dc.Namespace != pod.Namespace {
+			continue
+		}
+		if dc.Name == daemonControllerName {
+			controller = &dc
+			return
+		}
+	}
+	err = fmt.Errorf("could not find controllers for pod %s in namespace %s", pod.Name, pod.Namespace)
+	return
+}
+
 // StoreToServiceLister makes a Store that has the List method of the client.ServiceInterface
 // The Store must contain (only) Services.
 type StoreToServiceLister struct {

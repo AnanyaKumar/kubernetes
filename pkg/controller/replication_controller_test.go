@@ -69,15 +69,13 @@ func (f *FakePodControl) createReplica(namespace string, spec *api.ReplicationCo
 	return nil
 }
 
-func (f *FakePodControl) createReplicaOnNodes(namespace string, controller *api.DaemonController, nodeNames []string) error {
+func (f *FakePodControl) createReplicaOnNode(namespace string, controller *api.DaemonController, nodeName string) error {
 	f.lock.Lock()
 	defer f.lock.Unlock()
 	if f.err != nil {
 		return f.err
 	}
-	for range nodeNames {
-		f.daemonControllerSpec = append(f.daemonControllerSpec, *controller)
-	}
+	f.daemonControllerSpec = append(f.daemonControllerSpec, *controller)
 	return nil
 }
 

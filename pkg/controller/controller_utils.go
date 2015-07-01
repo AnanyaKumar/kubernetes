@@ -25,6 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/client"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/client/cache"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/client/record"
+	"github.com/GoogleCloudPlatform/kubernetes/pkg/controller/framework"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/labels"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/runtime"
 	"github.com/golang/glog"
@@ -36,20 +37,24 @@ const (
 	updateRetries       = 1
 )
 
-// Expectations are a way for replication controllers to tell the rc manager what they expect. eg:
-//	RCExpectations: {
-//		rc1: expects  2 adds in 2 minutes
-//		rc2: expects  2 dels in 2 minutes
-//		rc3: expects -1 adds in 2 minutes => rc3's expectations have already been met
+var (
+	controllerKeyFunc = framework.DeletionHandlingMetaNamespaceKeyFunc
+)
+
+// Expectations are a way for controllers to tell the controller manager what they expect. eg:
+//	ControllerExpectations: {
+//		controller1: expects  2 adds in 2 minutes
+//		controller2: expects  2 dels in 2 minutes
+//		controller3: expects -1 adds in 2 minutes => controller3's expectations have already been met
 //	}
 //
 // Implementation:
 //	PodExpectation = pair of atomic counters to track pod creation/deletion
-//	RCExpectationsStore = TTLStore + a PodExpectation per rc
+//	ControllerExpectationsStore = TTLStore + a PodExpectation per controller
 //
 // * Once set expectations can only be lowered
-// * An RC isn't synced till its expectations are either fulfilled, or expire
-// * Rcs that don't set expectations will get woken up for every matching pod
+// * A controller isn't synced till its expectations are either fulfilled, or expire
+// * Controllers that don't set expectations will get woken up for every matching pod
 
 // expKeyFunc to parse out the key from a PodExpectation
 var expKeyFunc = func(obj interface{}) (string, error) {
@@ -59,50 +64,46 @@ var expKeyFunc = func(obj interface{}) (string, error) {
 	return "", fmt.Errorf("Could not find key for obj %#v", obj)
 }
 
-// RCExpectationsManager is an interface that allows users to set and wait on expectations.
+// ControllerExpectationsInterface is an interface that allows users to set and wait on expectations.
 // Only abstracted out for testing.
-type RCExpectationsManager interface {
-	GetExpectations(rc *api.ReplicationController) (*PodExpectations, bool, error)
-	SatisfiedExpectations(rc *api.ReplicationController) bool
-	DeleteExpectations(rcKey string)
-	ExpectCreations(rc *api.ReplicationController, adds int) error
-	ExpectDeletions(rc *api.ReplicationController, dels int) error
-	CreationObserved(rc *api.ReplicationController)
-	DeletionObserved(rc *api.ReplicationController)
+type ControllerExpectationsInterface interface {
+	GetExpectations(controllerKey string) (*PodExpectations, bool, error)
+	SatisfiedExpectations(controllerKey string) bool
+	DeleteExpectations(controllerKey string)
+	ExpectCreations(controllerKey string, adds int) error
+	ExpectDeletions(controllerKey string, dels int) error
+	CreationObserved(controllerKey string)
+	DeletionObserved(controllerKey string)
 }
 
-// RCExpectations is a ttl cache mapping rcs to what they expect to see before being woken up for a sync.
-type RCExpectations struct {
+// ControllerExpectations is a ttl cache mapping controllers to what they expect to see before being woken up for a sync.
+type ControllerExpectations struct {
 	cache.Store
 }
 
-// GetExpectations returns the PodExpectations of the given rc.
-func (r *RCExpectations) GetExpectations(rc *api.ReplicationController) (*PodExpectations, bool, error) {
-	rcKey, err := rcKeyFunc(rc)
-	if err != nil {
-		return nil, false, err
-	}
-	if podExp, exists, err := r.GetByKey(rcKey); err == nil && exists {
+// GetExpectations returns the PodExpectations of the given controller.
+func (r *ControllerExpectations) GetExpectations(controllerKey string) (*PodExpectations, bool, error) {
+	if podExp, exists, err := r.GetByKey(controllerKey); err == nil && exists {
 		return podExp.(*PodExpectations), true, nil
 	} else {
 		return nil, false, err
 	}
 }
 
-// DeleteExpectations deletes the expectations of the given RC from the TTLStore.
-func (r *RCExpectations) DeleteExpectations(rcKey string) {
-	if podExp, exists, err := r.GetByKey(rcKey); err == nil && exists {
+// DeleteExpectations deletes the expectations of the given controller from the TTLStore.
+func (r *ControllerExpectations) DeleteExpectations(controllerKey string) {
+	if podExp, exists, err := r.GetByKey(controllerKey); err == nil && exists {
 		if err := r.Delete(podExp); err != nil {
-			glog.V(2).Infof("Error deleting expectations for rc %v: %v", rcKey, err)
+			glog.V(2).Infof("Error deleting expectations for controller %v: %v", controllerKey, err)
 		}
 	}
 }
 
 // SatisfiedExpectations returns true if the replication manager has observed the required adds/dels
-// for the given rc. Add/del counts are established by the rc at sync time, and updated as pods
-// are observed by the replication manager's podController.
-func (r *RCExpectations) SatisfiedExpectations(rc *api.ReplicationController) bool {
-	if podExp, exists, err := r.GetExpectations(rc); exists {
+// for the given controller. Add/del counts are established by the controller at sync time, and updated
+// as pods are observed by the replication manager's podController.
+func (r *ControllerExpectations) SatisfiedExpectations(controllerKey string) bool {
+	if podExp, exists, err := r.GetExpectations(controllerKey); exists {
 		if podExp.Fulfilled() {
 			return true
 		} else {
@@ -112,40 +113,36 @@ func (r *RCExpectations) SatisfiedExpectations(rc *api.ReplicationController) bo
 	} else if err != nil {
 		glog.V(2).Infof("Error encountered while checking expectations %#v, forcing sync", err)
 	} else {
-		// When a new rc is created, it doesn't have expectations.
+		// When a new controller is created, it doesn't have expectations.
 		// When it doesn't see expected watch events for > TTL, the expectations expire.
 		//	- In this case it wakes up, creates/deletes pods, and sets expectations again.
 		// When it has satisfied expectations and no pods need to be created/destroyed > TTL, the expectations expire.
 		//	- In this case it continues without setting expectations till it needs to create/delete pods.
-		glog.V(4).Infof("Controller %v either never recorded expectations, or the ttl expired.", rc.Name)
+		glog.V(4).Infof("Controller %v either never recorded expectations, or the ttl expired.", controllerKey)
 	}
 	// Trigger a sync if we either encountered and error (which shouldn't happen since we're
-	// getting from local store) or this rc hasn't established expectations.
+	// getting from local store) or this controller hasn't established expectations.
 	return true
 }
 
-// setExpectations registers new expectations for the given rc. Forgets existing expectations.
-func (r *RCExpectations) setExpectations(rc *api.ReplicationController, add, del int) error {
-	rcKey, err := rcKeyFunc(rc)
-	if err != nil {
-		return err
-	}
-	podExp := &PodExpectations{add: int64(add), del: int64(del), key: rcKey}
+// setExpectations registers new expectations for the given controller. Forgets existing expectations.
+func (r *ControllerExpectations) setExpectations(controllerKey string, add, del int) error {
+	podExp := &PodExpectations{add: int64(add), del: int64(del), key: controllerKey}
 	glog.V(4).Infof("Setting expectations %+v", podExp)
 	return r.Add(podExp)
 }
 
-func (r *RCExpectations) ExpectCreations(rc *api.ReplicationController, adds int) error {
-	return r.setExpectations(rc, adds, 0)
+func (r *ControllerExpectations) ExpectCreations(controllerKey string, adds int) error {
+	return r.setExpectations(controllerKey, adds, 0)
 }
 
-func (r *RCExpectations) ExpectDeletions(rc *api.ReplicationController, dels int) error {
-	return r.setExpectations(rc, 0, dels)
+func (r *ControllerExpectations) ExpectDeletions(controllerKey string, dels int) error {
+	return r.setExpectations(controllerKey, 0, dels)
 }
 
-// Decrements the expectation counts of the given rc.
-func (r *RCExpectations) lowerExpectations(rc *api.ReplicationController, add, del int) {
-	if podExp, exists, err := r.GetExpectations(rc); err == nil && exists {
+// Decrements the expectation counts of the given controller.
+func (r *ControllerExpectations) lowerExpectations(controllerKey string, add, del int) {
+	if podExp, exists, err := r.GetExpectations(controllerKey); err == nil && exists {
 		podExp.Seen(int64(add), int64(del))
 		// The expectations might've been modified since the update on the previous line.
 		glog.V(4).Infof("Lowering expectations %+v", podExp)
@@ -153,13 +150,13 @@ func (r *RCExpectations) lowerExpectations(rc *api.ReplicationController, add, d
 }
 
 // CreationObserved atomically decrements the `add` expecation count of the given replication controller.
-func (r *RCExpectations) CreationObserved(rc *api.ReplicationController) {
-	r.lowerExpectations(rc, 1, 0)
+func (r *ControllerExpectations) CreationObserved(controllerKey string) {
+	r.lowerExpectations(controllerKey, 1, 0)
 }
 
 // DeletionObserved atomically decrements the `del` expectation count of the given replication controller.
-func (r *RCExpectations) DeletionObserved(rc *api.ReplicationController) {
-	r.lowerExpectations(rc, 0, 1)
+func (r *ControllerExpectations) DeletionObserved(controllerKey string) {
+	r.lowerExpectations(controllerKey, 0, 1)
 }
 
 // Expectations are either fulfilled, or expire naturally.
@@ -191,9 +188,9 @@ func (e *PodExpectations) getExpectations() (int64, int64) {
 	return atomic.LoadInt64(&e.add), atomic.LoadInt64(&e.del)
 }
 
-// NewRCExpectations returns a store for PodExpectations.
-func NewRCExpectations() *RCExpectations {
-	return &RCExpectations{cache.NewTTLStore(expKeyFunc, ExpectationsTimeout)}
+// NewControllerExpectations returns a store for PodExpectations.
+func NewControllerExpectations() *ControllerExpectations {
+	return &ControllerExpectations{cache.NewTTLStore(expKeyFunc, ExpectationsTimeout)}
 }
 
 // PodControlInterface is an interface that knows how to add or delete pods
@@ -202,7 +199,7 @@ type PodControlInterface interface {
 	// createReplica creates new replicated pods according to the spec.
 	createReplica(namespace string, controller *api.ReplicationController) error
 	// createReplicaOnNodes creates a new pod according to the spec, on a specified list of nodes.
-	createReplicaOnNodes(namespace string, controller *api.DaemonController, nodeNames []string) error
+	createReplicaOnNode(namespace string, controller *api.DaemonController, nodeNames string) error
 	// deletePod deletes the pod identified by podID.
 	deletePod(namespace string, podID string) error
 }
@@ -280,7 +277,7 @@ func (r RealPodControl) createReplica(namespace string, controller *api.Replicat
 	return nil
 }
 
-func (r RealPodControl) createReplicaOnNodes(namespace string, controller *api.DaemonController, nodeNames []string) error {
+func (r RealPodControl) createReplicaOnNode(namespace string, controller *api.DaemonController, nodeName string) error {
 	desiredLabels := getReplicaLabelSet(controller.Spec.Template)
 	desiredAnnotations, err := getReplicaAnnotationSet(controller.Spec.Template, controller)
 	if err != nil {
@@ -288,30 +285,26 @@ func (r RealPodControl) createReplicaOnNodes(namespace string, controller *api.D
 	}
 	prefix := getReplicaPrefix(controller.Name)
 
-	for i := range nodeNames {
-		pod := &api.Pod{
-			ObjectMeta: api.ObjectMeta{
-				Labels:       desiredLabels,
-				Annotations:  desiredAnnotations,
-				GenerateName: prefix,
-			},
-			Spec: api.PodSpec{
-				NodeName: nodeNames[i],
-			},
-		}
-		if err := api.Scheme.Convert(&controller.Spec.Template.Spec, &pod.Spec); err != nil {
-			return fmt.Errorf("unable to convert pod template: %v", err)
-		}
-		if labels.Set(pod.Labels).AsSelector().Empty() {
-			return fmt.Errorf("unable to create pod replica, no labels")
-		}
-		if newPod, err := r.kubeClient.Pods(namespace).Create(pod); err != nil {
-			r.recorder.Eventf(controller, "failedCreate", "Error creating: %v", err)
-			return fmt.Errorf("unable to create pod replica: %v", err)
-		} else {
-			glog.V(4).Infof("Controller %v created pod %v", controller.Name, newPod.Name)
-			r.recorder.Eventf(controller, "successfulCreate", "Created pod: %v", newPod.Name)
-		}
+	pod := &api.Pod{
+		ObjectMeta: api.ObjectMeta{
+			Labels:       desiredLabels,
+			Annotations:  desiredAnnotations,
+			GenerateName: prefix,
+		},
+	}
+	if err := api.Scheme.Convert(&controller.Spec.Template.Spec, &pod.Spec); err != nil {
+		return fmt.Errorf("unable to convert pod template: %v", err)
+	}
+	if labels.Set(pod.Labels).AsSelector().Empty() {
+		return fmt.Errorf("unable to create pod replica, no labels")
+	}
+	pod.Spec.NodeName = nodeName
+	if newPod, err := r.kubeClient.Pods(namespace).Create(pod); err != nil {
+		r.recorder.Eventf(controller, "failedCreate", "Error creating: %v", err)
+		return fmt.Errorf("unable to create pod replica: %v", err)
+	} else {
+		glog.V(4).Infof("Controller %v created pod %v", controller.Name, newPod.Name)
+		r.recorder.Eventf(controller, "successfulCreate", "Created pod: %v", newPod.Name)
 	}
 
 	return nil

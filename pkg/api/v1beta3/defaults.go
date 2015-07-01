@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
+	labelslib "github.com/GoogleCloudPlatform/kubernetes/pkg/labels"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/util"
 	"github.com/golang/glog"
 )
@@ -44,7 +45,11 @@ func addDefaultingFuncs() {
 		func(obj *DaemonController) {
 			var labels map[string]string
 			if obj.Spec.Template != nil {
+				if obj.Spec.Template.Labels == nil {
+					obj.Spec.Template.Labels = make(map[string]string)
+				}
 				labels = obj.Spec.Template.Labels
+				obj.Spec.Template.Labels[labelslib.DaemonControllerLabel] = obj.Name
 			}
 			// TODO: support templates defined elsewhere when we support them in the API
 			if labels != nil {

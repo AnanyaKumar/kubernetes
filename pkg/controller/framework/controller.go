@@ -23,6 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/client/cache"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/runtime"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/util"
+	"github.com/golang/glog"
 )
 
 // Config contains all the settings for a Controller.
@@ -113,6 +114,7 @@ func (c *Controller) HasSynced() bool {
 func (c *Controller) processLoop() {
 	for {
 		obj := c.config.Queue.Pop()
+		glog.Infof("In process loop: %+v", obj)
 		err := c.config.Process(obj)
 		if err != nil {
 			if c.config.RetryOnError {
@@ -233,6 +235,7 @@ func NewInformer(
 						if err := clientState.Add(d.Object); err != nil {
 							return err
 						}
+						glog.Infof("Pods list from Lister.List: %+v", d.Object)
 						h.OnAdd(d.Object)
 					}
 				case cache.Deleted:

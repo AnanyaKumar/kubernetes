@@ -132,6 +132,7 @@ func (r *Reflector) listAndWatch(stopCh <-chan struct{}) {
 	defer cleanup()
 
 	list, err := r.listerWatcher.List()
+	glog.Infof("Reflector sees %+v", list)
 	if err != nil {
 		glog.Errorf("Failed to list %v: %v", r.expectedType, err)
 		return
