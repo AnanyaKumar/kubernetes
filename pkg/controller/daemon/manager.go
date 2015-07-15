@@ -17,6 +17,7 @@ limitations under the License.
 package daemon
 
 import (
+	"fmt"
 	"reflect"
 	"time"
 
@@ -100,18 +101,14 @@ func NewDaemonManager(kubeClient client.Interface) *DaemonManager {
 			AddFunc: func(obj interface{}) {
 				daemon := obj.(*api.DaemonController)
 				glog.V(4).Infof("Adding daemon %s", daemon.Name)
-				dm.enqueueController(obj)
+				dm.enqueueDaemon(obj)
 			},
 			UpdateFunc: func(old, cur interface{}) {
 				oldDaemon := old.(*api.DaemonController)
 				glog.V(4).Infof("Updating daemon %s", oldDaemon.Name)
-				dm.enqueueController(cur)
+				dm.enqueueDaemon(cur)
 			},
-			DeleteFunc: func(obj interface{}) {
-				daemon := obj.(*api.DaemonController)
-				glog.V(4).Infof("Deleting daemon %s", daemon.Name)
-				dm.enqueueController(obj)
-			},
+			DeleteFunc: nil,
 		},
 	)
 	// Watch for creation/deletion of pods. The reason we watch is that we don't want a daemon controller to create/delete
@@ -169,6 +166,7 @@ func (dm *DaemonManager) Run(workers int, stopCh <-chan struct{}) {
 }
 
 func (dm *DaemonManager) worker() {
+	fmt.Println("Working")
 	for {
 		func() {
 			key, quit := dm.queue.Get()
@@ -192,11 +190,11 @@ func (dm *DaemonManager) enqueueAllDaemons() {
 		return
 	}
 	for i := range daemonControllers {
-		dm.enqueueController(&daemonControllers[i])
+		dm.enqueueDaemon(&daemonControllers[i])
 	}
 }
 
-func (dm *DaemonManager) enqueueController(obj interface{}) {
+func (dm *DaemonManager) enqueueDaemon(obj interface{}) {
 	key, err := controller.KeyFunc(obj)
 	if err != nil {
 		glog.Errorf("Couldn't get key for object %+v: %v", obj, err)
@@ -224,7 +222,7 @@ func (dm *DaemonManager) addPod(obj interface{}) {
 			return
 		}
 		dm.expectations.CreationObserved(dcKey)
-		dm.enqueueController(dc)
+		dm.enqueueDaemon(dc)
 	}
 }
 
@@ -239,7 +237,7 @@ func (dm *DaemonManager) updatePod(old, cur interface{}) {
 	curPod := cur.(*api.Pod)
 	glog.V(4).Infof("Pod %s updated.", curPod.Name)
 	if dc := dm.getPodDaemonController(curPod); dc != nil {
-		dm.enqueueController(dc)
+		dm.enqueueDaemon(dc)
 	}
 	oldPod := old.(*api.Pod)
 	// If the labels have not changed, then the daemon controller responsible for
@@ -249,14 +247,16 @@ func (dm *DaemonManager) updatePod(old, cur interface{}) {
 		// If the old and new dc are the same, the first one that syncs
 		// will set expectations preventing any damage from the second.
 		if oldRC := dm.getPodDaemonController(oldPod); oldRC != nil {
-			dm.enqueueController(oldRC)
+			dm.enqueueDaemon(oldRC)
 		}
 	}
 }
 
 func (dm *DaemonManager) deletePod(obj interface{}) {
 	pod, ok := obj.(*api.Pod)
-	glog.V(4).Infof("Pod %s deleted.", pod.Name)
+	if ok {
+		glog.V(4).Infof("Pod %s deleted.", pod.Name)
+	}
 	// When a delete is dropped, the relist will notice a pod in the store not
 	// in the list, leading to the insertion of a tombstone object which contains
 	// the deleted key/value. Note that this value might be stale. If the pod
@@ -280,7 +280,7 @@ func (dm *DaemonManager) deletePod(obj interface{}) {
 			return
 		}
 		dm.expectations.DeletionObserved(dcKey)
-		dm.enqueueController(dc)
+		dm.enqueueDaemon(dc)
 	}
 }
 
@@ -319,6 +319,7 @@ func (dm *DaemonManager) manageDaemons(dc *api.DaemonController) {
 	nodeToDaemonPods, err := dm.getNodesToDaemonPods(dc)
 	if err != nil {
 		glog.Errorf("Error getting node to daemon pod mapping for daemon controller %+v: %v", dc, err)
+		return
 	}
 
 	// For each node, if the node is running the daemon pod but isn't supposed to, kill the daemon
@@ -326,6 +327,7 @@ func (dm *DaemonManager) manageDaemons(dc *api.DaemonController) {
 	nodeList, err := dm.nodeStore.List()
 	if err != nil {
 		glog.Errorf("Couldn't get list of nodes when adding daemon controller %+v: %v", dc, err)
+		return
 	}
 	var nodesNeedingDaemons, podsToDelete []string
 	for i := range nodeList.Items {
