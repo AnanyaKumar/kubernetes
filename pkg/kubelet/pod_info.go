@@ -143,26 +143,6 @@ func podIsTerminated(status *api.PodStatus) bool {
 	return false
 }
 
-//isBestEffort returns true if the pod is a best-effort pod, and false if it is a top-tier pod.
-//Best-effort pods use resources when available, but might be evicted to make room for top-tier pods.
-func isBestEffort(podSpec *api.PodSpec) bool {
-	for _, container := range podSpec.Containers {
-		if container.Resources.Limits.Memory().Value() == 0 || container.Resources.Limits.Cpu().MilliValue() == 0 {
-			return true
-		}
-	}
-	return false
-}
-
-//getPodOomScore returns the OOM score that the Kubelet should assign to all processes in the pod.
-//Pods with lower OOM scores are less likely to be killed if the system runs out of memory.
-func getPodOomScore(podSpec *api.PodSpec) int {
-	if isBestEffort(podSpec) {
-		return 50 // TODO: check if this value seems reasonable
-	}
-	return -50
-}
-
 func podFieldSelectorRuntimeValue(fs *api.ObjectFieldSelector, pod *api.Pod) (string, error) {
 	internalFieldPath, _, err := api.Scheme.ConvertFieldLabel(fs.APIVersion, "Pod", fs.FieldPath, "")
 	if err != nil {
