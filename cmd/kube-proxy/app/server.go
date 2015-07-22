@@ -34,6 +34,7 @@ import (
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/util"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/util/exec"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/util/iptables"
+	"github.com/GoogleCloudPlatform/kubernetes/pkg/util/oom"
 
 	"github.com/golang/glog"
 	"github.com/spf13/pflag"
@@ -77,7 +78,7 @@ func (s *ProxyServer) AddFlags(fs *pflag.FlagSet) {
 // Run runs the specified ProxyServer.  This should never exit.
 func (s *ProxyServer) Run(_ []string) error {
 	// TODO(vmarmol): Use container config for this.
-	if err := util.ApplyOomScoreAdj(0, s.OOMScoreAdj); err != nil {
+	if err := oom.ApplyOomScoreAdj(0, s.OOMScoreAdj); err != nil {
 		glog.V(2).Info(err)
 	}
 

@@ -14,28 +14,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package util
+package oom
 
 import (
 	"fmt"
 	"io/ioutil"
 	"path"
 	"strconv"
-	"time"
 
 	"github.com/docker/libcontainer/cgroups/fs"
 	"github.com/docker/libcontainer/configs"
 )
 
-const (
-	processListingDelay = 50 * time.Millisecond
-)
-
 // Writes 'value' to /proc/<pid>/oom_score_adj. PID = 0 means self
-func ApplyOomScoreAdj(pid int, value int) error {
-	if value < -1000 || value > 1000 {
-		return fmt.Errorf("invalid value(%d) specified for oom_score_adj. Values must be within the range [-1000, 1000]", value)
-	}
+func ApplyOomScoreAdj(pid int, oomScoreAdj int) error {
 	if pid < 0 {
 		return fmt.Errorf("invalid PID %d specified for oom_score_adj", pid)
 	}
@@ -47,12 +39,13 @@ func ApplyOomScoreAdj(pid int, value int) error {
 		pidStr = strconv.Itoa(pid)
 	}
 
-	oom_value, err := ioutil.ReadFile(path.Join("/proc", pidStr, "oom_score_adj"))
+	oomScoreAdjPath := path.Join("/proc", pidStr, "oom_score_adj")
+	oom_value, err := ioutil.ReadFile(oomScoreAdjPath)
 	if err != nil {
 		return fmt.Errorf("failed to read oom_score_adj: %v", err)
-	} else if string(oom_value) != strconv.Itoa(value) {
-		if err := ioutil.WriteFile(path.Join("/proc", pidStr, "oom_score_adj"), []byte(strconv.Itoa(value)), 0700); err != nil {
-			return fmt.Errorf("failed to set oom_score_adj to %d: %v", value, err)
+	} else if string(oom_value) != strconv.Itoa(oomScoreAdj) {
+		if err := ioutil.WriteFile(oomScoreAdjPath, []byte(strconv.Itoa(oomScoreAdj)), 0700); err != nil {
+			return fmt.Errorf("failed to set oom_score_adj to %d: %v", oomScoreAdj, err)
 		}
 	}
 
@@ -88,10 +81,11 @@ func ApplyOomScoreAdjContainer(cgroupName string, oomScoreAdj, maxTries int) err
 		if !continueAdjusting {
 			return nil
 		}
-		// Sleep, because a process might have forked just before we wrote its OOM score adjust.
-		// The forked process id might not be reflected in cgroup.procs for a short amount of time.
-		// TODO: look into fork specifications/implementation to see if this is necessary.
-		time.Sleep(processListingDelay)
+		// There's a slight race. A process might have forked just before we write its OOM score adjust.
+		// The fork might copy the parent process's old OOM score, then this function might execute and
+		// update the parent's OOM score, but the forked process id might not be reflected in cgroup.procs
+		// for a short amount of time. So this function might return without changing the forked process's
+		// OOM score. Very unlikely race, so ignoring this for now.
 	}
-	return fmt.Errorf("Exceeded maxTries, some processes might not have desired OOM score.")
+	return fmt.Errorf("exceeded maxTries, some processes might not have desired OOM score")
 }

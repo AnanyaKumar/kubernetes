@@ -52,6 +52,7 @@ import (
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/util"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/util/mount"
 	nodeutil "github.com/GoogleCloudPlatform/kubernetes/pkg/util/node"
+	"github.com/GoogleCloudPlatform/kubernetes/pkg/util/oom"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/volume"
 
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/cloudprovider"
@@ -255,7 +256,7 @@ func (s *KubeletServer) Run(_ []string) error {
 	rand.Seed(time.Now().UTC().UnixNano())
 
 	// TODO(vmarmol): Do this through container config.
-	if err := util.ApplyOomScoreAdj(0, s.OOMScoreAdj); err != nil {
+	if err := oom.ApplyOomScoreAdj(0, s.OOMScoreAdj); err != nil {
 		glog.Warning(err)
 	}
 
