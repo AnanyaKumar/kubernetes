@@ -45,20 +45,12 @@ import (
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/securitycontext"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/types"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/util"
-	"github.com/docker/libcontainer/cgroups/fs"
-	"github.com/docker/libcontainer/configs"
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/golang/glog"
 	"github.com/golang/groupcache/lru"
 )
 
 const (
-	// The oom_score_adj of the POD infrastructure container. The default is 0 for
-	// any other docker containers, so any value below that makes it *less* likely
-	// to get OOM killed.
-	podOomScoreAdj           = -100
-	userContainerOomScoreAdj = 0
-
 	maxReasonCacheEntries = 200
 
 	kubernetesPodLabel       = "io.kubernetes.pod.data"
@@ -1225,20 +1217,14 @@ func (dm *DockerManager) runContainerInPod(pod *api.Pod, container *api.Containe
 	} else {
 		oomScoreAdj = qos.GetPodOomAdjust(&pod.Spec)
 	}
-	fsManager := fs.Manager{
-		Cgroups: &configs.Cgroup{
-			Name:            id,
-			Parent:          "docker",
-			AllowAllDevices: true,
-		},
-	}
-	processLister := func() ([]int, error) {
-		return fsManager.GetPids()
-	}
-	err = util.ApplyOomScoreAdjProcesses(processLister, oomScoreAdj, 5)
-	if err != nil {
-		return "", err
-	}
+	cgroupName := DockerNamespace + "/" + id
+	// Apply OOM scores asynchronously because the applying OOM scores might take some time.
+	go func() {
+		err = util.ApplyOomScoreAdjContainer(cgroupName, oomScoreAdj, 5)
+		if err != nil {
+			glog.Errorf("Error setting OOM scores for container %s in pod %s: %+v", container.Name, pod.Name, err)
+		}
+	}()
 
 	// currently, Docker does not have a flag by which the ndots option can be passed.
 	// (A seperate issue has been filed with Docker to add a ndots flag)

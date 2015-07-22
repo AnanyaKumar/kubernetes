@@ -24,14 +24,14 @@ import (
 // (barring exceptional cases). Giving over a 1000 difference between top tier and best effort
 // pods means that best-effort pods will be killed before top-tier pods.
 const (
-	PodInfraOomAdj   int = -501
+	PodInfraOomAdj   int = -701
 	TopTierOomAdj    int = -501
 	BestEffortOomAdj int = 501
 )
 
 // Policy contains functions that decide what quality of service a pod should get.
 
-// isBestEffort returns true if the pod is a best-effort pod, and false if it is a top-tier pod.
+// IsBestEffort returns true if the pod is a best-effort pod, and false if it is a top-tier pod.
 // Best-effort pods use resources when available, but might be evicted to make room for top-tier pods.
 func IsBestEffort(podSpec *api.PodSpec) bool {
 	for _, container := range podSpec.Containers {
@@ -42,7 +42,7 @@ func IsBestEffort(podSpec *api.PodSpec) bool {
 	return false
 }
 
-// getPodOomAdjust returns the amount by which the OOM score of all processes in the pod should be adjusted.
+// GetPodOomAdjust returns the amount by which the OOM score of all processes in the pod should be adjusted.
 // Pods with lower OOM scores are less likely to be killed if the system runs out of memory.
 func GetPodOomAdjust(podSpec *api.PodSpec) int {
 	if IsBestEffort(podSpec) {

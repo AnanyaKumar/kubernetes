@@ -21,6 +21,14 @@ import (
 	"io/ioutil"
 	"path"
 	"strconv"
+	"time"
+
+	"github.com/docker/libcontainer/cgroups/fs"
+	"github.com/docker/libcontainer/configs"
+)
+
+const (
+	processListingDelay = 50 * time.Millisecond
 )
 
 // Writes 'value' to /proc/<pid>/oom_score_adj. PID = 0 means self
@@ -51,10 +59,39 @@ func ApplyOomScoreAdj(pid int, value int) error {
 	return nil
 }
 
-// Writes 'value' to /proc/<pid>/oom_score_adj for all processes produced by processLister.
-// Keeps trying to write until processLister produces the same list, or until max retries.
-// The main use case of this is to set oom_score_adj for all processes in some group (e.g. cgroup).
-func ApplyOomScoreAdjProcesses(processLister func() ([]int, error), oomScoreAdj, maxRetries int) error {
-	// TODO (Ananya): implement this
-	return nil
+// Writes 'value' to /proc/<pid>/oom_score_adj for all processes in cgroup cgroupName.
+// Keeps trying to write until the process list of the cgroup stabilizes, or until maxTries tries.
+func ApplyOomScoreAdjContainer(cgroupName string, oomScoreAdj, maxTries int) error {
+	fsManager := fs.Manager{
+		Cgroups: &configs.Cgroup{
+			Name:            cgroupName,
+			AllowAllDevices: true,
+		},
+	}
+	adjustedProcessSet := make(map[int]bool)
+	for i := 0; i < maxTries; i++ {
+		continueAdjusting := false
+		pidList, err := fsManager.GetPids()
+		if err != nil || len(pidList) == 0 {
+			continueAdjusting = true
+		} else {
+			for _, pid := range pidList {
+				if !adjustedProcessSet[pid] {
+					continueAdjusting = true
+					err = ApplyOomScoreAdj(pid, oomScoreAdj)
+					if err == nil {
+						adjustedProcessSet[pid] = true
+					}
+				}
+			}
+		}
+		if !continueAdjusting {
+			return nil
+		}
+		// Sleep, because a process might have forked just before we wrote its OOM score adjust.
+		// The forked process id might not be reflected in cgroup.procs for a short amount of time.
+		// TODO: look into fork specifications/implementation to see if this is necessary.
+		time.Sleep(processListingDelay)
+	}
+	return fmt.Errorf("Exceeded maxTries, some processes might not have desired OOM score.")
 }
