@@ -703,22 +703,19 @@ func getPodInfoFromContainer(c *docker.APIContainers) (types.UID, string, string
 }
 
 // getFullContainerName gets the container name given the root process id of the container.
-// Eg. If the devices cgroup for the container is stored in /sys/fs/cgroup/devices/docker/nginx return docker/nginx.
-// Assumes that the process is part of exactly one cgroup hierarchy.
+// Eg. If the devices cgroup for the container is stored in /sys/fs/cgroup/devices/docker/nginx,
+// return docker/nginx. Assumes that the process is part of exactly one cgroup hierarchy.
 func getFullContainerName(pid int) (string, error) {
-	filePath := path.Join("/proc", fmt.Sprintf("%d", pid), "cgroup")
+	filePath := path.Join("/proc", strconv.Itoa(pid), "cgroup")
 	content, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return "", err
 	}
 	lines := strings.Split(string(content), "\n")
-	deviceLabel := "devices:"
 	for _, line := range lines {
-		devicesIndex := strings.Index(line, deviceLabel)
-		if devicesIndex != -1 {
-			containerNameIdx := devicesIndex + len(deviceLabel)
-			fullContainerName := line[containerNameIdx:]
-			return strings.TrimSpace(fullContainerName), nil
+		entries := strings.SplitN(line, ":", 2)
+		if len(entries) == 2 && entries[0] == "devices" {
+			return strings.TrimSpace(entries[1]), nil
 		}
 	}
 	return "", fmt.Errorf("could not find devices cgroup location")
