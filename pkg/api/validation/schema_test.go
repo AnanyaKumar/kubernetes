@@ -63,6 +63,7 @@ func TestValidateOk(t *testing.T) {
 		{obj: &api.Pod{}},
 		{obj: &api.Service{}},
 		{obj: &api.ReplicationController{}},
+		{obj: &api.Daemon{}},
 	}
 
 	seed := rand.Int63()

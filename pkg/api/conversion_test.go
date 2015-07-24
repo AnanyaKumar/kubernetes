@@ -81,7 +81,7 @@ func BenchmarkNodeConversion(b *testing.B) {
 }
 
 func BenchmarkReplicationControllerConversion(b *testing.B) {
-	data, err := ioutil.ReadFile("replication_controller_example.json")
+	data, err := ioutil.ReadFile("replication_example.json")
 	if err != nil {
 		b.Fatalf("Unexpected error while reading file: %v", err)
 	}
@@ -105,5 +105,33 @@ func BenchmarkReplicationControllerConversion(b *testing.B) {
 	}
 	if !api.Semantic.DeepDerivative(replicationController, *result) {
 		b.Fatalf("Incorrect conversion: expected %v, got %v", replicationController, *result)
+	}
+}
+
+func BenchmarkDaemonConversion(b *testing.B) {
+	data, err := ioutil.ReadFile("daemon_controller_example.json")
+	if err != nil {
+		b.Fatalf("Unexpected error while reading file: %v", err)
+	}
+	var daemon api.Daemon
+	if err := api.Scheme.DecodeInto(data, &daemon); err != nil {
+		b.Fatalf("Unexpected error decoding daemon: %v", err)
+	}
+
+	scheme := api.Scheme.Raw()
+	var result *api.Daemon
+	for i := 0; i < b.N; i++ {
+		versionedObj, err := scheme.ConvertToVersion(&daemon, testapi.Version())
+		if err != nil {
+			b.Fatalf("Conversion error: %v", err)
+		}
+		obj, err := scheme.ConvertToVersion(versionedObj, scheme.InternalVersion)
+		if err != nil {
+			b.Fatalf("Conversion error: %v", err)
+		}
+		result = obj.(*api.Daemon)
+	}
+	if !api.Semantic.DeepDerivative(daemon, *result) {
+		b.Fatalf("Incorrect conversion: expected %v, got %v", daemon, *result)
 	}
 }
