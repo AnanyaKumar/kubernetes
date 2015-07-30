@@ -156,6 +156,18 @@ func addDefaultingFuncs() {
 				obj.APIVersion = "v1"
 			}
 		},
+		func(obj *ResourceRequirements) {
+			if obj.Limits != nil {
+				if obj.Requests == nil {
+					obj.Requests = make(ResourceList)
+				}
+				for key, value := range obj.Limits {
+					if _, exists := obj.Requests[key]; !exists {
+						obj.Requests[key] = *(value.Copy())
+					}
+				}
+			}
+		},
 	)
 }
 

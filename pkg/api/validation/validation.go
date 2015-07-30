@@ -1489,19 +1489,21 @@ func ValidateResourceRequirements(requirements *api.ResourceRequirements) errs.V
 	allErrs := errs.ValidationErrorList{}
 	for resourceName, quantity := range requirements.Limits {
 		// Validate resource name.
-		errs := validateResourceName(resourceName.String(), fmt.Sprintf("resources.limits[%s]", resourceName))
+		allErrs = append(allErrs, validateResourceName(resourceName.String(), fmt.Sprintf("resources.limits[%s]", resourceName))...)
 		if api.IsStandardResourceName(resourceName.String()) {
-			errs = append(errs, validateBasicResource(quantity).Prefix(fmt.Sprintf("Resource %s: ", resourceName))...)
+			allErrs = append(allErrs, validateBasicResource(quantity).Prefix(fmt.Sprintf("Resource %s: ", resourceName))...)
 		}
-		allErrs = append(allErrs, errs...)
+		requestQuantity, exists := requirements.Requests[resourceName]
+		if exists && quantity.MilliValue() < requestQuantity.MilliValue() {
+			allErrs = append(allErrs, errs.NewFieldInvalid(fmt.Sprintf("resources.limits[%s]", resourceName), quantity.MilliValue(), "limit cannot be smaller than request"))
+		}
 	}
 	for resourceName, quantity := range requirements.Requests {
 		// Validate resource name.
-		errs := validateResourceName(resourceName.String(), fmt.Sprintf("resources.requests[%s]", resourceName))
+		allErrs = append(allErrs, validateResourceName(resourceName.String(), fmt.Sprintf("resources.requests[%s]", resourceName))...)
 		if api.IsStandardResourceName(resourceName.String()) {
-			errs = append(errs, validateBasicResource(quantity).Prefix(fmt.Sprintf("Resource %s: ", resourceName))...)
+			allErrs = append(allErrs, validateBasicResource(quantity).Prefix(fmt.Sprintf("Resource %s: ", resourceName))...)
 		}
-		allErrs = append(allErrs, errs...)
 	}
 	return allErrs
 }
