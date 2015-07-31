@@ -579,7 +579,13 @@ func (dm *DockerManager) runContainer(
 		}
 	}
 	memoryLimit := container.Resources.Limits.Memory().Value()
-	cpuShares := milliCPUToShares(container.Resources.Requests.Cpu().MilliValue())
+	cpuRequest := container.Resources.Requests.Cpu()
+	var cpuShares int64
+	if cpuRequest.Amount != nil {
+		cpuShares = milliCPUToShares(cpuRequest.MilliValue())
+	} else {
+		cpuShares = milliCPUToShares(container.Resources.Limits.Cpu().MilliValue())
+	}
 	dockerOpts := docker.CreateContainerOptions{
 		Name: BuildDockerName(dockerName, container),
 		Config: &docker.Config{
