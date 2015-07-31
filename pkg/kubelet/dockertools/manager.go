@@ -578,7 +578,7 @@ func (dm *DockerManager) runContainer(
 			labels[kubernetesContainerLabel] = container.Name
 		}
 	}
-	memoryLimit := container.Resources.Requests.Memory().Value()
+	memoryLimit := container.Resources.Limits.Memory().Value()
 	cpuShares := milliCPUToShares(container.Resources.Requests.Cpu().MilliValue())
 	dockerOpts := docker.CreateContainerOptions{
 		Name: BuildDockerName(dockerName, container),

@@ -157,6 +157,7 @@ func addDefaultingFuncs() {
 			}
 		},
 		func(obj *ResourceRequirements) {
+			// Set requests to limits if limits are not specified.
 			if obj.Limits != nil {
 				if obj.Requests == nil {
 					obj.Requests = make(ResourceList)

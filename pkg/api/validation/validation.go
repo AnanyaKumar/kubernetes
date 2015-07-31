@@ -1493,9 +1493,20 @@ func ValidateResourceRequirements(requirements *api.ResourceRequirements) errs.V
 		if api.IsStandardResourceName(resourceName.String()) {
 			allErrs = append(allErrs, validateBasicResource(quantity).Prefix(fmt.Sprintf("Resource %s: ", resourceName))...)
 		}
+		// Check that request <= limit.
 		requestQuantity, exists := requirements.Requests[resourceName]
-		if exists && quantity.MilliValue() < requestQuantity.MilliValue() {
-			allErrs = append(allErrs, errs.NewFieldInvalid(fmt.Sprintf("resources.limits[%s]", resourceName), quantity.MilliValue(), "limit cannot be smaller than request"))
+		if exists {
+			var requestValue, limitValue int64
+			requestValue = requestQuantity.Value()
+			limitValue = quantity.Value()
+			// Do a more precise comparison if possible (if the value won't overflow).
+			if requestValue <= resource.MaxMilliValue && limitValue <= resource.MaxMilliValue {
+				requestValue = requestQuantity.MilliValue()
+				limitValue = quantity.MilliValue()
+			}
+			if limitValue < requestValue {
+				allErrs = append(allErrs, errs.NewFieldInvalid(fmt.Sprintf("resources.limits[%s]", resourceName), quantity.String(), "limit cannot be smaller than request"))
+			}
 		}
 	}
 	for resourceName, quantity := range requirements.Requests {
