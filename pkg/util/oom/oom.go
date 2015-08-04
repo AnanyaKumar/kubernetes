@@ -76,8 +76,7 @@ func ApplyOomScoreAdjContainer(cgroupName string, oomScoreAdj, maxTries int) err
 			for _, pid := range pidList {
 				if !adjustedProcessSet[pid] {
 					continueAdjusting = true
-					err = ApplyOomScoreAdj(pid, oomScoreAdj)
-					if err == nil {
+					if err = ApplyOomScoreAdj(pid, oomScoreAdj); err == nil {
 						adjustedProcessSet[pid] = true
 					}
 				}

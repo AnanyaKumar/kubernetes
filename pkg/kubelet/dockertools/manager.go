@@ -1273,8 +1273,7 @@ func (dm *DockerManager) runContainerInPod(pod *api.Pod, container *api.Containe
 	}
 	// Apply OOM scores asynchronously because the applying OOM scores might take some time.
 	go func() {
-		err = oom.ApplyOomScoreAdjContainer(cgroupName, oomScoreAdj, 5)
-		if err != nil {
+		if err = oom.ApplyOomScoreAdjContainer(cgroupName, oomScoreAdj, 5); err != nil {
 			glog.Errorf("error setting OOM scores for container %s in pod %s: %+v", container.Name, pod.Name, err)
 		}
 	}()
