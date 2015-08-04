@@ -74,10 +74,6 @@ func TestRESTMapper(t *testing.T) {
 		t.Errorf("unexpected version mapping: %s %s %v", v, k, err)
 	}
 
-	if v, k, err := RESTMapper.VersionAndKindForResource("daemon"); err != nil || v != "v1" || k != "Daemon" {
-		t.Errorf("unexpected version mapping: %s %s %v", v, k, err)
-	}
-
 	if m, err := RESTMapper.RESTMapping("PodTemplate", ""); err != nil || m.APIVersion != "v1" || m.Resource != "podtemplates" {
 		t.Errorf("unexpected version mapping: %#v %v", m, err)
 	}
