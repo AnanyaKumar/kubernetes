@@ -35,6 +35,7 @@ import (
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/client/clientcmd"
 	clientcmdapi "github.com/GoogleCloudPlatform/kubernetes/pkg/client/clientcmd/api"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/cloudprovider"
+	"github.com/GoogleCloudPlatform/kubernetes/pkg/controller/daemon"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/controller/endpoint"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/controller/namespace"
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/controller/node"
@@ -61,6 +62,7 @@ type CMServer struct {
 	CloudConfigFile         string
 	ConcurrentEndpointSyncs int
 	ConcurrentRCSyncs       int
+	ConcurrentDCSyncs       int
 	ServiceSyncPeriod       time.Duration
 	NodeSyncPeriod          time.Duration
 	ResourceQuotaSyncPeriod time.Duration
@@ -93,6 +95,7 @@ func NewCMServer() *CMServer {
 		Address:                 util.IP(net.ParseIP("127.0.0.1")),
 		ConcurrentEndpointSyncs: 5,
 		ConcurrentRCSyncs:       5,
+		ConcurrentDCSyncs:       2,
 		ServiceSyncPeriod:       5 * time.Minute,
 		NodeSyncPeriod:          10 * time.Second,
 		ResourceQuotaSyncPeriod: 10 * time.Second,
@@ -188,6 +191,9 @@ func (s *CMServer) Run(_ []string) error {
 
 	controllerManager := replicationControllerPkg.NewReplicationManager(kubeClient, replicationControllerPkg.BurstReplicas)
 	go controllerManager.Run(s.ConcurrentRCSyncs, util.NeverStop)
+
+	daemonManager := daemon.NewDaemonManager(kubeClient)
+	go daemonManager.Run(s.ConcurrentDCSyncs, util.NeverStop)
 
 	cloud, err := cloudprovider.InitCloudProvider(s.CloudProvider, s.CloudConfigFile)
 	if err != nil {
