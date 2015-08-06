@@ -18,6 +18,7 @@ package daemon
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 
 	"github.com/GoogleCloudPlatform/kubernetes/pkg/api"
@@ -53,7 +54,21 @@ func (daemonStrategy) PrepareForCreate(obj runtime.Object) {
 func (daemonStrategy) PrepareForUpdate(obj, old runtime.Object) {
 	newDaemon := obj.(*api.Daemon)
 	oldDaemon := old.(*api.Daemon)
-	newDaemon.Status = oldDaemon.Status
+
+	// Any changes to the spec increment the generation number, any changes to the
+	// status should reflect the generation number of the corresponding object. We push
+	// the burden of managing the status onto the clients because we can't (in general)
+	// know here what version of spec the writer of the status has seen. It may seem like
+	// we can at first -- since obj contains spec -- but in the future we will probably make
+	// status its own object, and even if we don't, writes may be the result of a
+	// read-update-write loop, so the contents of spec may not actually be the spec that
+	// the controller has *seen*.
+	//
+	// TODO: Any changes to a part of the object that represents desired state (labels,
+	// annotations etc) should also increment the generation.
+	if !reflect.DeepEqual(oldDaemon.Spec, newDaemon.Spec) {
+		newDaemon.Generation = oldDaemon.Generation + 1
+	}
 }
 
 // Validate validates a new daemon.

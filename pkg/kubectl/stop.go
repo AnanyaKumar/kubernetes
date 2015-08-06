@@ -218,7 +218,7 @@ func (reaper *DaemonReaper) Stop(namespace, name string, timeout time.Duration, 
 			// if there's an error, we want to try getting the daemon again.
 			return false, nil
 		}
-		return updatedDc.Status.CurrentNumberScheduled == 0, nil
+		return updatedDc.Status.CurrentNumberScheduled+updatedDc.Status.NumberMisscheduled == 0, nil
 	}
 	if err := wait.Poll(reaper.pollInterval, reaper.timeout, daemonPodsKilled); err != nil {
 		return "", err
